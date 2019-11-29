@@ -25,9 +25,11 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.jwt.Jwt;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
 import org.springframework.security.oauth2.config.annotation.configurers.ClientDetailsServiceConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
@@ -110,7 +112,13 @@ public class AuthorizationServerConfiguration extends AuthorizationServerConfigu
 				.authorizedGrantTypes("password")
 				.secret("{noop}secret")
 				.scopes("none")
-				.accessTokenValiditySeconds(600_000_000);
+				.accessTokenValiditySeconds(600_000_000)
+                .and()
+            .withClient("test")
+                .authorizedGrantTypes("authorization_code","refresh_token")
+                .secret("{noop}secret")
+                .scopes("resource:read")
+                .redirectUris("http://localhost:8080/login/oauth2/code/mytest");
 		// @formatter:on
 	}
 
@@ -160,7 +168,7 @@ class UserConfig extends WebSecurityConfigurerAdapter {
 	protected void configure(HttpSecurity http) throws Exception {
 		http
 			.authorizeRequests()
-				.mvcMatchers("/.well-known/jwks.json").permitAll()
+				.mvcMatchers("/.well-known/jwks.json","/oauth/userinfo").permitAll()
 				.anyRequest().authenticated()
 				.and()
 			.httpBasic()
@@ -194,22 +202,22 @@ class IntrospectEndpoint {
 		this.tokenStore = tokenStore;
 	}
 
-	@PostMapping("/introspect")
+	@GetMapping("/oauth/userinfo")
 	@ResponseBody
-	public Map<String, Object> introspect(@RequestParam("token") String token) {
-		OAuth2AccessToken accessToken = this.tokenStore.readAccessToken(token);
+	public Map<String, Object> introspect(@AuthenticationPrincipal Jwt jwt) {
+//		OAuth2AccessToken accessToken = this.tokenStore.readAccessToken(token);
 		Map<String, Object> attributes = new HashMap<>();
-		if (accessToken == null || accessToken.isExpired()) {
-			attributes.put("active", false);
-			return attributes;
-		}
-
-		OAuth2Authentication authentication = this.tokenStore.readAuthentication(token);
+//		if (accessToken == null || accessToken.isExpired()) {
+//			attributes.put("active", false);
+//			return attributes;
+//		}
+//
+//		OAuth2Authentication authentication = this.tokenStore.readAuthentication(token);
 
 		attributes.put("active", true);
-		attributes.put("exp", accessToken.getExpiration().getTime());
-		attributes.put("scope", accessToken.getScope().stream().collect(Collectors.joining(" ")));
-		attributes.put("sub", authentication.getName());
+		attributes.put("exp", "");
+		attributes.put("scope", "");
+		attributes.put("sub", "subject");
 
 		return attributes;
 	}
